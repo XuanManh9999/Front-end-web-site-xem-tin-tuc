@@ -1,92 +1,46 @@
 import configApi from "../configs/ConfigAxios";
 import { AxiosError } from "axios";
 
-export interface CourseSalesDetail {
-  courseId: string;
-  courseTitle: string;
-  instructorName: string;
-  price: number;
-  quantitySold: number;
-  totalRevenue: number;
-  salesDate: string;
-}
-
-export interface MonthlyCourseSales {
-  month: number;
-  totalRevenue: number;
-  courses: CourseSalesDetail[];
-}
-
-export const getReportRevenue = async (year: number = new Date().getFullYear()) => {
+export const getArticlesByYear = async (year: number) => {
   try {
-    const response = await configApi.get(`/api/v1/report/statistics/monthly-revenue?year=${year}`);
+    const response = await configApi.get(`/report/articles-by-month?year=${year}`);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
     return axiosError.response?.data;
   }
 };
-export interface MonthlyCourseSalesOptions {
-  page?: number;
-  size?: number;
-  instructorId?: number;
-  minPrice?: number;
-  maxPrice?: number;
-  courseTitle?: string;
-  categoryId?: number;
-  minQuantitySold?: number;
-  minRevenue?: number;
-  maxRevenue?: number;
-}
 
-export const getMonthlyCourseSales = async (
+
+export const getArticlesByMonth = async (
   year: number,
   month: number,
-  options: MonthlyCourseSalesOptions = {}
+  day?: number,
+  sortBy: string = "view",
+  order: string = "desc",
+  page: number = 0,
+  size: number = 10,
+  keyword?: string,
 ) => {
   try {
-    const {
-      page = 0,
-      size = 10,
-      instructorId,
-      minPrice,
-      maxPrice,
-      courseTitle,
-      categoryId,
-      minQuantitySold,
-      minRevenue,
-      maxRevenue,
-    } = options;
+    const params = new URLSearchParams({
+      year: year.toString(),
+      month: month.toString(),
+      sortBy,
+      order,
+      page: page.toString(),
+      size: size.toString(),
+    });
 
-    const response = await configApi.get(
-      `/api/v1/report/statistics/monthly-course-sales`,
-      {
-        params: {
-          year,
-          month,
-          page,
-          size,
-          instructorId,
-          minPrice,
-          maxPrice,
-          courseTitle,
-          categoryId,
-          minQuantitySold,
-          minRevenue,
-          maxRevenue,
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    const axiosError = error as AxiosError;
-    return axiosError.response?.data;
-  }
-};
+    // Chỉ thêm day nếu nó có giá trị
+    if (day !== undefined) {
+      params.append("day", day.toString());
+    }
+    if (keyword !== undefined && keyword !== "") {
+      params.append("keyword", keyword);
+    }
 
-export const getQuantityDashboard = async () => {
-  try {
-    const response = await configApi.get("/api/v1/report/dashboard");
+    const response = await configApi.get(`/report/articles-detail-month?${params.toString()}`);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
