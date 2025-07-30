@@ -21,12 +21,12 @@ export default function AuthLayout({
                 <img
                   width={231}
                   height={48}
-                  src="/images/logo/auth-logo.svg"
+                  src="/images/logo/logo-xtt-removebg-preview.png"
                   alt="Logo"
                 />
               </Link>
               <p className="text-center text-gray-400 dark:text-white/60">
-                Trang quản trị hệ thống website tin tức
+                Trang quản trị hệ thống website tin tức Công ty Cổ phần Cấp nước Tân Hòa
               </p>
             </div>
           </div>

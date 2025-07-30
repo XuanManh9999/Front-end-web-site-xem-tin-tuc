@@ -1,4 +1,4 @@
-import { configApi } from "../configs/ConfigAxios";
+import configApi from "../configs/ConfigAxios";
 interface PaymentHistoryParams {
     success?: boolean;
     year?: number;

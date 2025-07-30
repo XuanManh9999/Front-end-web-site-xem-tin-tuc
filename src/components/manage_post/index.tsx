@@ -4,9 +4,7 @@ import { getPosts, getPostById, createPost, updatePost, deletePost, TypeArticles
 import { getCategoryPosts } from "../../services/category_post";
 import { getCategoryTag } from "../../services/category_tag";
 import { IoIosAdd } from "react-icons/io";
-import { RiDeleteBinLine } from "react-icons/ri";
 import { FaEye, FaEdit } from "react-icons/fa";
-import { MdOutlineApproval } from "react-icons/md";
 import { HiOutlineFilter } from "react-icons/hi";
 import { FiDownload } from "react-icons/fi";
 import { UploadOutlined } from "@ant-design/icons";
@@ -20,6 +18,7 @@ import { useSearchParams } from "react-router";
 import Label from "../form/Label";
 import dayjs from "dayjs";
 import ReactQuill from 'react-quill';
+import he from "he";
 import 'react-quill/dist/quill.snow.css';
 
 // Cấu hình toolbar cho ReactQuill
@@ -52,7 +51,6 @@ const formats = [
   'color', 'background', 'script',
   'align', 'direction', 'clean'
 ];
-import './PostForm.css';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -99,18 +97,18 @@ const ManagePost: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'view' | 'edit' | 'add' | null>(null);
-  const [sortBy, setSortBy] = useState("view");
+  const [sortBy, setSortBy] = useState("createAt");
   const [order, setOrder] = useState("desc");
-  const [formData, setFormData] = useState<ArticlesRequest>({});
+  const [formData, setFormData] = useState<ArticlesRequest>({
+    type: TypeArticles.ARTICLE,
+  });
   const [content, setContent] = useState("");
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const quillRef = useRef<any>(null);
   const [quillLoaded, setQuillLoaded] = useState(false);
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   const handleViewDetails = (post: Post) => {
     setSelectedPost(post);
@@ -127,14 +125,14 @@ const ManagePost: React.FC = () => {
           title: postData.title,
           slug: postData.slug,
           categoryId: postData.category.id,
-          type: postData.type,
+          type: TypeArticles.ARTICLE,
           authorId: postData.author.id,
           tagIds: postData.tags.map((tag: Tag) => tag.id)
         });
-        setContent(postData.content);
         setSelectedTags(postData.tags.map((tag: Tag) => tag.id));
         setSelectedPost(postData);
         setModalType('edit');
+        // Content sẽ được set trong useEffect khi modal mở
       }
     } catch (error) {
       console.error("Error fetching post details:", error);
@@ -144,10 +142,60 @@ const ManagePost: React.FC = () => {
     }
   };
 
+  const validateForm = (isEdit: boolean = false): boolean => {
+    const newErrors: {[key: string]: string} = {};
+
+    // Validate title
+    if (!formData.title || formData.title.trim() === '') {
+      newErrors.title = 'Tiêu đề là bắt buộc';
+    } else if (formData.title.length < 5) {
+      newErrors.title = 'Tiêu đề phải có ít nhất 5 ký tự';
+    } else if (formData.title.length > 200) {
+      newErrors.title = 'Tiêu đề không được vượt quá 200 ký tự';
+    }
+
+    // Validate slug
+    if (!formData.slug || formData.slug.trim() === '') {
+      newErrors.slug = 'Slug là bắt buộc';
+    } else if (!/^[a-z0-9-]+$/.test(formData.slug)) {
+      newErrors.slug = 'Slug chỉ được chứa chữ thường, số và dấu gạch ngang';
+    }
+
+    // Validate category
+    if (!formData.categoryId) {
+      newErrors.categoryId = 'Danh mục là bắt buộc';
+    }
+
+    // Validate content
+    if (!content || content.trim() === '') {
+      newErrors.content = 'Nội dung là bắt buộc';
+    } else if (content.length < 50) {
+      newErrors.content = 'Nội dung phải có ít nhất 50 ký tự';
+    }
+
+    // Validate thumbnail - chỉ bắt buộc khi thêm mới
+    if (!isEdit && !thumbnail) {
+      newErrors.thumbnail = 'Thumbnail là bắt buộc';
+    }
+
+    // Validate tags
+    if (selectedTags.length === 0) {
+      newErrors.tags = 'Phải chọn ít nhất 1 tag';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleAdd = async () => {
+    if (!validateForm(false)) {
+      message.error("Vui lòng kiểm tra lại thông tin nhập vào");
+      return;
+    }
+
     try {
       setLoading(true);
-      const formDataToSend = createPostFormData(formData, thumbnail);
+      const formDataToSend = createPostFormData(formData, thumbnail, false);
       const response = await createPost(formDataToSend);
       
       if (response?.status === 201) {
@@ -169,9 +217,14 @@ const ManagePost: React.FC = () => {
   const handleUpdate = async () => {
     if (!selectedPost) return;
     
+    if (!validateForm(true)) {
+      message.error("Vui lòng kiểm tra lại thông tin nhập vào");
+      return;
+    }
+    
     try {
       setLoading(true);
-      const formDataToSend = createPostFormData(formData, thumbnail);
+      const formDataToSend = createPostFormData(formData, thumbnail, true);
       const response = await updatePost(selectedPost.id, formDataToSend);
       
       if (response?.status === 200) {
@@ -213,6 +266,7 @@ const ManagePost: React.FC = () => {
     setContent("");
     setThumbnail(null);
     setSelectedTags([]);
+    setErrors({});
   };
 
   // Debug function to check if ReactQuill is working
@@ -247,13 +301,31 @@ const ManagePost: React.FC = () => {
     }
   }, [modalType]);
 
-  const createPostFormData = (data: ArticlesRequest, thumbnail?: File | null): FormData => {
+  // Đảm bảo ReactQuill được khởi tạo khi modal edit mở
+  useEffect(() => {
+    if (modalType === 'edit' && selectedPost && quillRef.current) {
+      // Đợi một chút để ReactQuill khởi tạo xong
+      const timer = setTimeout(() => {
+        if (quillRef.current) {
+          const quill = quillRef.current.getEditor();
+          if (quill) {
+            quill.setContents(quill.clipboard.convert(selectedPost.content || ""));
+            setContent(selectedPost.content || "");
+          }
+        }
+      }, 200);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [modalType, selectedPost]);
+
+  const createPostFormData = (data: ArticlesRequest, thumbnail?: File | null, isEdit: boolean = false): FormData => {
     const formData = new FormData();
     
     if (data.title) formData.append('title', data.title);
     if (data.slug) formData.append('slug', data.slug);
     if (content) formData.append('content', content);
-    if (data.type) formData.append('type', data.type);
+    if (data.type) formData.append('type', data.type || TypeArticles.ARTICLE);
     if (data.authorId) formData.append('authorId', data.authorId.toString());
     if (data.categoryId) formData.append('categoryId', data.categoryId.toString());
     if (selectedTags.length > 0) {
@@ -261,7 +333,10 @@ const ManagePost: React.FC = () => {
         formData.append('tagIds', tagId.toString());
       });
     }
-    if (thumbnail) formData.append('thumbnail', thumbnail);
+    // Chỉ thêm thumbnail nếu có file mới hoặc không phải edit mode
+    if (thumbnail || !isEdit) {
+      if (thumbnail) formData.append('thumbnail', thumbnail);
+    }
     
     return formData;
   };
@@ -480,8 +555,8 @@ const ManagePost: React.FC = () => {
                 setOffset(0);
               }}
             >
-              <Option value="view">Lượt xem</Option>
               <Option value="createAt">Mới nhất</Option>
+              <Option value="view">Lượt xem</Option>
             </Select>
           </div>
           <div>
@@ -587,9 +662,9 @@ const ManagePost: React.FC = () => {
               </div>
             </div>
 
-            <Card className="bg-gray-50 border-0 shadow-sm">
-              <div className="prose max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: selectedPost.content }} />
+          <Card className="bg-gray-50 border-0 shadow-sm">
+              <div className="ql-editor">
+                <div dangerouslySetInnerHTML={{ __html: selectedPost?.content || "" }} />
               </div>
             </Card>
 
@@ -638,37 +713,69 @@ const ManagePost: React.FC = () => {
         width={800}
         confirmLoading={loading}
       >
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-yellow-600">⚠️</span>
+            <span className="text-sm text-yellow-800 font-medium">
+              Các trường có dấu <span className="text-red-500">*</span> là bắt buộc phải điền
+            </span>
+          </div>
+        </div>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="title">Tiêu đề</Label>
+              <Label htmlFor="title">Tiêu đề <span className="text-red-500">*</span></Label>
               <Input
                 id="title"
                 value={formData.title || ""}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                onChange={(e) => {
+                  setFormData({...formData, title: e.target.value});
+                  if (errors.title) {
+                    setErrors({...errors, title: ''});
+                  }
+                }}
                 placeholder="Nhập tiêu đề bài viết"
+                status={errors.title ? 'error' : ''}
               />
+              {errors.title && (
+                <div className="text-red-500 text-sm mt-1">{errors.title}</div>
+              )}
             </div>
             <div>
-              <Label htmlFor="slug">Slug</Label>
+              <Label htmlFor="slug">Slug <span className="text-red-500">*</span></Label>
               <Input
                 id="slug"
                 value={formData.slug || ""}
-                onChange={(e) => setFormData({...formData, slug: e.target.value})}
+                onChange={(e) => {
+                  setFormData({...formData, slug: e.target.value});
+                  if (errors.slug) {
+                    setErrors({...errors, slug: ''});
+                  }
+                }}
                 placeholder="Nhập slug"
+                status={errors.slug ? 'error' : ''}
               />
+              {errors.slug && (
+                <div className="text-red-500 text-sm mt-1">{errors.slug}</div>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="category">Danh mục</Label>
+              <Label htmlFor="category">Danh mục <span className="text-red-500">*</span></Label>
               <Select
                 id="category"
                 className="w-full"
                 placeholder="Chọn danh mục"
                 value={formData.categoryId}
-                onChange={(value) => setFormData({...formData, categoryId: value})}
+                onChange={(value) => {
+                  setFormData({...formData, categoryId: value});
+                  if (errors.categoryId) {
+                    setErrors({...errors, categoryId: ''});
+                  }
+                }}
+                status={errors.categoryId ? 'error' : ''}
               >
                 {categories.map((category) => (
                   <Option key={category.id} value={category.id}>
@@ -676,6 +783,9 @@ const ManagePost: React.FC = () => {
                   </Option>
                 ))}
               </Select>
+              {errors.categoryId && (
+                <div className="text-red-500 text-sm mt-1">{errors.categoryId}</div>
+              )}
             </div>
             <div>
               <Label htmlFor="type">Loại bài viết</Label>
@@ -683,23 +793,30 @@ const ManagePost: React.FC = () => {
                 id="type"
                 className="w-full"
                 placeholder="Chọn loại bài viết"
-                value={formData.type}
-                onChange={(value) => setFormData({...formData, type: value})}
+                value={TypeArticles.ARTICLE}
+                defaultValue={TypeArticles.ARTICLE}
+                onChange={(value) => setFormData({...formData, type: value || TypeArticles.ARTICLE})}
               >
-                <Option value={TypeArticles.ARTICLE} selected>Bài viết</Option>
+                <Option value={TypeArticles.ARTICLE}>Bài viết</Option>
               </Select>
             </div>
           </div>
 
           <div>
-            <Label htmlFor="tags">Tags</Label>
+            <Label htmlFor="tags">Tags <span className="text-red-500">*</span></Label>
             <Select
               id="tags"
               mode="multiple"
               className="w-full"
               placeholder="Chọn tags"
               value={selectedTags}
-              onChange={setSelectedTags}
+              onChange={(value) => {
+                setSelectedTags(value);
+                if (errors.tags) {
+                  setErrors({...errors, tags: ''});
+                }
+              }}
+              status={errors.tags ? 'error' : ''}
             >
               {tags.map((tag) => (
                 <Option key={tag.id} value={tag.id}>
@@ -707,31 +824,50 @@ const ManagePost: React.FC = () => {
                 </Option>
               ))}
             </Select>
+            {errors.tags && (
+              <div className="text-red-500 text-sm mt-1">{errors.tags}</div>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="thumbnail">Thumbnail</Label>
+            <Label htmlFor="thumbnail">Thumbnail <span className="text-red-500">*</span></Label>
             <Upload
               beforeUpload={(file) => {
                 setThumbnail(file);
+                if (errors.thumbnail) {
+                  setErrors({...errors, thumbnail: ''});
+                }
                 return false;
               }}
-              onRemove={() => setThumbnail(null)}
+              onRemove={() => {
+                setThumbnail(null);
+                if (!errors.thumbnail) {
+                  setErrors({...errors, thumbnail: 'Thumbnail là bắt buộc'});
+                }
+              }}
               maxCount={1}
             >
               <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
             </Upload>
+            {errors.thumbnail && (
+              <div className="text-red-500 text-sm mt-1">{errors.thumbnail}</div>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="content">Nội dung</Label>
-            <div className="border rounded-lg bg-white" style={{ minHeight: '400px' }}>
+            <Label htmlFor="content">Nội dung <span className="text-red-500">*</span></Label>
+            <div className={`border rounded-lg bg-white ${errors.content ? 'border-red-500' : ''}`} style={{ minHeight: '400px' }}>
               <div className="quill-wrapper">
                 <ReactQuill
                   ref={quillRef}
                   theme="snow"
                   value={content}
-                  onChange={setContent}
+                  onChange={(value) => {
+                    setContent(value);
+                    if (errors.content) {
+                      setErrors({...errors, content: ''});
+                    }
+                  }}
                   modules={modules}
                   formats={formats}
                   placeholder="Nhập nội dung bài viết... Bạn có thể sử dụng các công cụ trên thanh toolbar để định dạng văn bản, thêm hình ảnh, video, code và nhiều tính năng khác!"
@@ -741,6 +877,9 @@ const ManagePost: React.FC = () => {
                 />
               </div>
             </div>
+            {errors.content && (
+              <div className="text-red-500 text-sm mt-1">{errors.content}</div>
+            )}
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0">
@@ -807,37 +946,69 @@ const ManagePost: React.FC = () => {
         width={800}
         confirmLoading={loading}
       >
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-yellow-600">⚠️</span>
+            <span className="text-sm text-yellow-800 font-medium">
+              Các trường có dấu <span className="text-red-500">*</span> là bắt buộc phải điền
+            </span>
+          </div>
+        </div>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="title-edit">Tiêu đề</Label>
+              <Label htmlFor="title-edit">Tiêu đề <span className="text-red-500">*</span></Label>
               <Input
                 id="title-edit"
                 value={formData.title || ""}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                onChange={(e) => {
+                  setFormData({...formData, title: e.target.value});
+                  if (errors.title) {
+                    setErrors({...errors, title: ''});
+                  }
+                }}
                 placeholder="Nhập tiêu đề bài viết"
+                status={errors.title ? 'error' : ''}
               />
+              {errors.title && (
+                <div className="text-red-500 text-sm mt-1">{errors.title}</div>
+              )}
             </div>
             <div>
-              <Label htmlFor="slug-edit">Slug</Label>
+              <Label htmlFor="slug-edit">Slug <span className="text-red-500">*</span></Label>
               <Input
                 id="slug-edit"
                 value={formData.slug || ""}
-                onChange={(e) => setFormData({...formData, slug: e.target.value})}
+                onChange={(e) => {
+                  setFormData({...formData, slug: e.target.value});
+                  if (errors.slug) {
+                    setErrors({...errors, slug: ''});
+                  }
+                }}
                 placeholder="Nhập slug"
+                status={errors.slug ? 'error' : ''}
               />
+              {errors.slug && (
+                <div className="text-red-500 text-sm mt-1">{errors.slug}</div>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="category-edit">Danh mục</Label>
+              <Label htmlFor="category-edit">Danh mục <span className="text-red-500">*</span></Label>
               <Select
                 id="category-edit"
                 className="w-full"
                 placeholder="Chọn danh mục"
                 value={formData.categoryId}
-                onChange={(value) => setFormData({...formData, categoryId: value})}
+                onChange={(value) => {
+                  setFormData({...formData, categoryId: value});
+                  if (errors.categoryId) {
+                    setErrors({...errors, categoryId: ''});
+                  }
+                }}
+                status={errors.categoryId ? 'error' : ''}
               >
                 {categories.map((category) => (
                   <Option key={category.id} value={category.id}>
@@ -845,6 +1016,9 @@ const ManagePost: React.FC = () => {
                   </Option>
                 ))}
               </Select>
+              {errors.categoryId && (
+                <div className="text-red-500 text-sm mt-1">{errors.categoryId}</div>
+              )}
             </div>
             <div>
               <Label htmlFor="type-edit">Loại bài viết</Label>
@@ -853,22 +1027,29 @@ const ManagePost: React.FC = () => {
                 className="w-full"
                 placeholder="Chọn loại bài viết"
                 value={formData.type}
-                onChange={(value) => setFormData({...formData, type: value})}
+                
+                onChange={(value) => setFormData({...formData, type: value || TypeArticles.ARTICLE})}
               >
-                <Option value={TypeArticles.ARTICLE} selected>Bài viết</Option>
+                <Option value={TypeArticles.ARTICLE}>Bài viết</Option>
               </Select>
             </div>
           </div>
 
           <div>
-            <Label htmlFor="tags-edit">Tags</Label>
+            <Label htmlFor="tags-edit">Tags <span className="text-red-500">*</span></Label>
             <Select
               id="tags-edit"
               mode="multiple"
               className="w-full"
               placeholder="Chọn tags"
               value={selectedTags}
-              onChange={setSelectedTags}
+              onChange={(value) => {
+                setSelectedTags(value);
+                if (errors.tags) {
+                  setErrors({...errors, tags: ''});
+                }
+              }}
+              status={errors.tags ? 'error' : ''}
             >
               {tags.map((tag) => (
                 <Option key={tag.id} value={tag.id}>
@@ -876,31 +1057,47 @@ const ManagePost: React.FC = () => {
                 </Option>
               ))}
             </Select>
+            {errors.tags && (
+              <div className="text-red-500 text-sm mt-1">{errors.tags}</div>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="thumbnail-edit">Thumbnail</Label>
+            <Label htmlFor="thumbnail-edit">Thumbnail (tùy chọn)</Label>
             <Upload
               beforeUpload={(file) => {
                 setThumbnail(file);
+                if (errors.thumbnail) {
+                  setErrors({...errors, thumbnail: ''});
+                }
                 return false;
               }}
-              onRemove={() => setThumbnail(null)}
+              onRemove={() => {
+                setThumbnail(null);
+              }}
               maxCount={1}
             >
               <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
             </Upload>
+            {errors.thumbnail && (
+              <div className="text-red-500 text-sm mt-1">{errors.thumbnail}</div>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="content-edit">Nội dung</Label>
-            <div className="border rounded-lg bg-white" style={{ minHeight: '400px' }}>
+            <Label htmlFor="content-edit">Nội dung <span className="text-red-500">*</span></Label>
+            <div className={`border rounded-lg bg-white ${errors.content ? 'border-red-500' : ''}`} style={{ minHeight: '400px' }}>
               <div className="quill-wrapper">
                 <ReactQuill
                   ref={quillRef}
                   theme="snow"
                   value={content}
-                  onChange={setContent}
+                  onChange={(value) => {
+                    setContent(value);
+                    if (errors.content) {
+                      setErrors({...errors, content: ''});
+                    }
+                  }}
                   modules={modules}
                   formats={formats}
                   placeholder="Nhập nội dung bài viết... Bạn có thể sử dụng các công cụ trên thanh toolbar để định dạng văn bản, thêm hình ảnh, video, code và nhiều tính năng khác!"
@@ -910,6 +1107,9 @@ const ManagePost: React.FC = () => {
                 />
               </div>
             </div>
+            {errors.content && (
+              <div className="text-red-500 text-sm mt-1">{errors.content}</div>
+            )}
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0">

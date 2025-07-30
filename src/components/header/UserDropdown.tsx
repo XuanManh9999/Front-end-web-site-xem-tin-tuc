@@ -14,8 +14,8 @@ export default function UserDropdown() {
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("isLogin");
-    Cookies.remove("access_token");
-    Cookies.remove("refresh_token");
+    Cookies.remove("accessTokenAdmin");
+    Cookies.remove("refreshTokenAdmin");
     nav("/signin");
   };
 

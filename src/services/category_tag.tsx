@@ -1,4 +1,4 @@
-import { configApi } from "../configs/ConfigAxios";
+import configApi from "../configs/ConfigAxios";
 import { AxiosError } from "axios";
 
 interface CategoryCourse {

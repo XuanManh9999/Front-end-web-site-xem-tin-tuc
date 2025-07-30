@@ -1,5 +1,5 @@
 import { AxiosError } from "axios";
-import { configApi } from "../configs/ConfigAxios";
+import configApi from "../configs/ConfigAxios";
 import { PaginationApi } from "../interface/pagination";
 
 export const getUsers = async (pagination: PaginationApi) => {

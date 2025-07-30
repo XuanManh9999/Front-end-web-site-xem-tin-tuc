@@ -40,10 +40,9 @@ export default function SignInForm() {
       if (status === 200) {
         Cookies.set("accessTokenAdmin", accessToken, { expires: 1 / 24 });
         Cookies.set("refreshTokenAdmin", refreshToken, { expires: 1 });
-
         const { data, status: statusCurr } = await getCurrentUser();
 
-        if (statusCurr === 200 && data?.roles[0]?.name === "ROLE_ADMIN") {
+        if (statusCurr === 200 && (data?.roles[0]?.name === "ROLE_ADMIN" ||  data?.roles[0]?.name === "ROLE_MANAGE")) {
           message.success("Đăng nhập thành công");
           localStorage.setItem("user", JSON.stringify(data));
           localStorage.setItem("isLogin", "true");
