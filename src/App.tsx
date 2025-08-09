@@ -12,10 +12,8 @@ import ManageCategoryArticle from "./components/manage_category_post";
 import ManagePost from "./components/manage_post";
 import ManagePayment from "./components/manage_payment";
 import ManageCategoryTag from "./components/manage_category_tag";
-import {useState } from "react";
 export default function App() {
   const user = JSON.parse(localStorage.getItem("user") || "{}")
-
   return (
     <>
       <Router>
