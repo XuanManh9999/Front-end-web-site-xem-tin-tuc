@@ -4,7 +4,7 @@ import { Auth } from "../interface/auth";
 export const apiLogin = async (dataLogin: Auth) => {
   try {
     const response = await axios.post(
-      "http://localhost:8080/auth/access",
+      "https://codezen.io.vn/auth/access",
       dataLogin
     );
     return response?.data;

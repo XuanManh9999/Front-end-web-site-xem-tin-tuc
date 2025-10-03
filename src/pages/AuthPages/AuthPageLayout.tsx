@@ -26,7 +26,7 @@ export default function AuthLayout({
                 />
               </Link>
               <p className="text-center text-gray-400 dark:text-white/60">
-                Trang quản trị hệ thống website tin tức Công ty Cổ phần Cấp nước Tân Hòa
+              365new
               </p>
             </div>
           </div>
