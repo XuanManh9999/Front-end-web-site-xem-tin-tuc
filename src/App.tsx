@@ -13,7 +13,6 @@ import ManagePost from "./components/manage_post";
 import ManagePayment from "./components/manage_payment";
 import ManageCategoryTag from "./components/manage_category_tag";
 export default function App() {
-  const user = JSON.parse(localStorage.getItem("user") || "{}")
   return (
     <>
       <Router>
@@ -21,9 +20,7 @@ export default function App() {
         <Routes>
           <Route element={<AppLayout />}>
             <Route index path="/" element={<Home />} />
-            {user?.roles?.some((role: any ) => role?.name === "ROLE_ADMIN") && (
-              <Route path="/manage-user" element={<ManageUser />} />
-            )}
+            <Route path="/manage-user" element={<ManageUser />} />
             <Route path="/manage-course" element={<ManageCourse />} />
             <Route path="/manage-role" element={<ManageRole />} />
             <Route path="/manage-report" element={<ManageReport />} />

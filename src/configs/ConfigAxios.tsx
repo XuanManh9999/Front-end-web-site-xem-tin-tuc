@@ -11,7 +11,7 @@ export const setAxiosInactivityHandler = (resetFn: ResetFn) => {
 };
 
 const configApi: AxiosInstance = axios.create({
-  baseURL: "http://localhost:8080/api/v1",
+  baseURL: "https://codezen.io.vn/api/v1",
 });
 
 let isAlertShown = false;
@@ -51,7 +51,7 @@ configApi.interceptors.response.use(
 
       try {
         const res = await axios.post(
-          "http://localhost:8080/auth/refresh",
+          "https://codezen.io.vn/auth/refresh",
           {},
           {
             headers: {
